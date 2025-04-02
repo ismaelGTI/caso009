@@ -1,0 +1,50 @@
+name: Workflow detectar MS
+run-name: Esta siendo ejecutado por ${{ github.actor }}
+
+on: 
+  push:
+    branches:
+      - main
+  workflow_dispatch:        
+
+jobs:
+  listfiles:
+    runs-on: ubuntu-latest
+    outputs:
+      archivocambiado: ${{ steps.lista-archivos.outputs.archivocambiado }}
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Obtener archivos modificados
+        id: archivos-cambiados
+        uses: tj-actions/changed-files@v44
+        with:
+          files: 'Microservicios/**'
+
+      - name: Listar todos los ficheros 
+        id: lista-archivos 
+        env: 
+          all_archivos: ${{ steps.archivos-cambiados.outputs.all_changed_files }}
+        run: |
+          if [ -z "$all_archivos" ]; then
+            echo "No se detectaron archivos modificados"
+            echo "archivocambiado=" >> $GITHUB_OUTPUT
+          else
+            for file in $all_archivos; do
+              echo "$file was changed"
+            done
+            echo "archivocambiado=$all_archivos" >> $GITHUB_OUTPUT
+
+  microservicios:
+    needs: listfiles
+    if: ${{ needs.listfiles.outputs.archivocambiado != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ejecutando
+        run: |
+          for file in ${{ needs.listfiles.outputs.archivocambiado }}; do
+            echo "Ejecutando archivo: $file"
+            sh "$file"
+          done
