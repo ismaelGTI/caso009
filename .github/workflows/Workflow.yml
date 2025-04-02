@@ -1,50 +1,41 @@
-name: Workflow detectar MS
-run-name: Esta siendo ejecutado por ${{ github.actor }}
+
+run-name: Ejecutado por ${{ github.actor }}
 
 on: 
   push:
     branches:
       - main
-  workflow_dispatch:        
+  workflow_dispatch:
 
 jobs:
-  listfiles:
+  detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      archivocambiado: ${{ steps.lista-archivos.outputs.archivocambiado }}
+      changed_services: ${{ steps.detect.outputs.changed }}
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: Obtener archivos modificados
-        id: archivos-cambiados
-        uses: tj-actions/changed-files@v44
+      - name: Detectar microservicios modificados
+        id: detect
+        uses: tj-actions/changed-files@v34
         with:
-          files: 'Microservicios/**'
-
-      - name: Listar todos los ficheros 
-        id: lista-archivos 
-        env: 
-          all_archivos: ${{ steps.archivos-cambiados.outputs.all_changed_files }}
+          files: 'Micros/**'
+        
+      - name: Establecer microservicios modificados
+        id: set-changes
         run: |
-          if [ -z "$all_archivos" ]; then
-            echo "No se detectaron archivos modificados"
-            echo "archivocambiado=" >> $GITHUB_OUTPUT
-          else
-            for file in $all_archivos; do
-              echo "$file was changed"
-            done
-            echo "archivocambiado=$all_archivos" >> $GITHUB_OUTPUT
+          echo "changed=$(echo ${{ steps.detect.outputs.all_changed_files }} | grep -o 'Micros/[^/]*' | sort -u | paste -sd, -)" >> $GITHUB_OUTPUT
 
-  microservicios:
-    needs: listfiles
-    if: ${{ needs.listfiles.outputs.archivocambiado != '' }}
+  build-and-deploy:
+    needs: detect-changes
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [${{ fromJSON(needs.detect-changes.outputs.changed_services) }}]
     steps:
-      - uses: actions/checkout@v4
-      - name: Ejecutando
-        run: |
-          for file in ${{ needs.listfiles.outputs.archivocambiado }}; do
-            echo "Ejecutando archivo: $file"
-            sh "$file"
-          done
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Ejecutar script de CI/CD
+        run: bash ${{ matrix.service }}/example1.sh || bash ${{ matrix.service }}/example2.sh || bash ${{ matrix.service }}/example3.sh
