@@ -1,2 +1,1 @@
-#!/bin/bash
-echo "Este es un script de ejemplo."
+echo '# Este es un comentario de prueba' >> Microservicios/example1.sh
