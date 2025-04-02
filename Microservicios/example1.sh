@@ -38,3 +38,4 @@ echo "Contenido del archivo de ejemplo:"
 cat ejemplo.txt
 
 echo "Script ejecutado con éxito."
+
