@@ -1,5 +1,5 @@
-name: CI/CD para Microservicios
-run-name: Ejecutado por ${{ github.actor }}
+name: Build and Deploy Microservices
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 
 on: 
   push:
@@ -8,48 +8,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  detect-changes:
+  listfiles:
     runs-on: ubuntu-latest
     outputs:
-      changed_services: ${{ steps.set-changes.outputs.changed_services }}
+      changedfiles: ${{ steps.listchangedfiles.outputs.changedfiles }}
     steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Detectar microservicios modificados
-        id: detect
-        uses: tj-actions/changed-files@v34
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
         with:
-          files: |
-            Microservicios/**/*
-        
-      - name: Establecer microservicios modificados
-        id: set-changes
-        run: |
-          changed_files=$(echo "${{ steps.detect.outputs.all_changed_files }}" | grep -o 'Microservicios/[^/]*' | sort -u | paste -sd ',' -)
-          if [ -z "$changed_files" ]; then
-            echo "changed_services=[]" >> $GITHUB_OUTPUT
-          else
-            echo "changed_services=$changed_files" >> $GITHUB_OUTPUT
-          fi
+          files: 'Microservicios/**'
 
-  build-and-deploy:
-    needs: detect-changes
+      - name: List all changed files
+        id: listchangedfiles
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          ARRAY=()
+          for file in ${ALL_CHANGED_FILES}; do
+            echo "$file was changed"
+            ARRAY+=("$file")
+          done
+          echo "DEBUG: All changed files: ${ARRAY[@]}"
+          matrix=$(jq --compact-output --null-input '$ARGS.positional' --args -- "${ARRAY[@]}")
+          echo "DEBUG: Json Matrix: $matrix"
+          echo "changedfiles=${matrix}" >> $GITHUB_OUTPUT
+
+  microservices:
+    needs: listfiles
+    if: ${{ needs.listfiles.outputs.changedfiles != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJSON(needs.detect-changes.outputs.changed_services) }}
+        changedfiles: ${{ fromJson(needs.listfiles.outputs.changedfiles) }}
+      max-parallel: 3
     steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Ejecutar script de CI/CD
+      - name: execution
         run: |
-          if [ -f ${{ matrix.service }}/example1.sh ]; then
-            bash ${{ matrix.service }}/example1.sh
-          elif [ -f ${{ matrix.service }}/example2.sh ]; then
-            bash ${{ matrix.service }}/example2.sh
-          elif [ -f ${{ matrix.service }}/example3.sh ]; then
-            bash ${{ matrix.service }}/example3.sh
-          else
-            echo "No se encontró ningún script para ejecutar en ${{ matrix.service }}"
+          sh ${{ matrix.changedfiles }}
