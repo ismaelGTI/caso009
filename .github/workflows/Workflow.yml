@@ -19,7 +19,7 @@ jobs:
         id: detect
         uses: tj-actions/changed-files@v34
         with:
-          files: 'Micros/**'
+          files: 'Microservicios/**'
         
       - name: Establecer microservicios modificados
         id: set-changes
