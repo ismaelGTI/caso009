@@ -1,55 +1,40 @@
-name: CI/CD para Microservicios
-run-name: Ejecutado por ${{ github.actor }}
+#!/bin/bash
 
-on: 
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+# Verificar si el script se está ejecutando con permisos de superusuario
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "Por favor, ejecute este script como superusuario."
+  exit 1
+fi
 
-jobs:
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      changed_services: ${{ steps.set-changes.outputs.changed_services }}
-    steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
+# Actualizar el sistema
+echo "Actualizando el sistema..."
+apt-get update && apt-get upgrade -y
 
-      - name: Detectar microservicios modificados
-        id: detect
-        uses: tj-actions/changed-files@v34
-        with:
-          files: |
-            Microservicios/**/*
-        
-      - name: Establecer microservicios modificados
-        id: set-changes
-        run: |
-          changed_services=$(echo ${{ steps.detect.outputs.all_changed_files }} | grep -o 'Microservicios/[^/]*' | sort -u | paste -sd ',' -)
-          if [ -z "$changed_services" ]; then
-            echo "changed_services=[]" >> $GITHUB_OUTPUT
-          else
-            echo "changed_services=$changed_services" >> $GITHUB_OUTPUT
-          fi
+# Instalar paquetes necesarios
+echo "Instalando paquetes necesarios..."
+apt-get install -y curl git
 
-  build-and-deploy:
-    needs: detect-changes
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: ${{ fromJSON(needs.detect-changes.outputs.changed_services) }}
-    steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
+# Clonar un repositorio de ejemplo
+echo "Clonando un repositorio de ejemplo..."
+git clone https://github.com/octocat/Hello-World.git
 
-      - name: Ejecutar script de CI/CD
-        run: |
-          if [ -f ${{ matrix.service }}/example1.sh ]; then
-            bash ${{ matrix.service }}/example1.sh
-          elif [ -f ${{ matrix.service }}/example2.sh ]; then
-            bash ${{ matrix.service }}/example2.sh
-          elif [ -f ${{ matrix.service }}/example3.sh ]; then
-            bash ${{ matrix.service }}/example3.sh
-          else
-            echo "No se encontró ningún script para ejecutar en ${{ matrix.service }}"
+# Cambiar al directorio del repositorio clonado
+cd Hello-World || exit
+
+# Crear un archivo de ejemplo en el repositorio clonado
+echo "Creando un archivo de ejemplo..."
+echo "Este es un archivo de ejemplo." > ejemplo.txt
+
+# Comprobar que el archivo se ha creado correctamente
+if [[ -f "ejemplo.txt" ]]; then
+  echo "El archivo de ejemplo se ha creado correctamente."
+else
+  echo "Error: No se pudo crear el archivo de ejemplo."
+  exit 1
+fi
+
+# Mostrar el contenido del archivo de ejemplo
+echo "Contenido del archivo de ejemplo:"
+cat ejemplo.txt
+
+echo "Script ejecutado con éxito."
